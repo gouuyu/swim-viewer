@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Swim Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
@@ -74,6 +75,11 @@ tr:last-child td { border-bottom: none; }
 .label-cell { text-align: left; color: #444; }
 
 .footer { text-align: center; color: #aaa; font-size: 10px; padding: 16px 0; }
+
+/* ── グラフ ── */
+.chart-grid { display: flex; flex-direction: column; gap: 12px; }
+.chart-wrap { position: relative; height: 200px; }
+.chart-title { font-size: 11px; font-weight: 700; color: #1A5276; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -235,6 +241,7 @@ function showDetail(token) {
 }
 
 function showDashboard() {
+  destroyCharts();
   history.pushState({}, "", "/");
   hide("page-detail");
   show("page-dashboard");
@@ -258,6 +265,7 @@ function renderDetail(data, meta) {
   const secondHalf = midPt && lastPt && timing[midPt] != null && timing[lastPt] != null
                      ? timing[lastPt] - timing[midPt] : null;
 
+  destroyCharts();
   document.getElementById("detail-content").innerHTML = `
     <div class="header">
       <h1>${a.name || "選手名未設定"} <span style="font-size:14px;opacity:.8">${a.event || ""}</span></h1>
@@ -317,8 +325,128 @@ function renderDetail(data, meta) {
       </table>
     </div>` : ""}
 
+    ${strokes.some(s => s.ST != null) ? `
+    <div class="section">
+      <div class="section-title">グラフ (SV・ST・SL)</div>
+      <div class="chart-grid">
+        <div><div class="chart-title">SV (m/s)</div><div class="chart-wrap"><canvas id="chart-sv"></canvas></div></div>
+        <div><div class="chart-title">ST (s/str)</div><div class="chart-wrap"><canvas id="chart-st"></canvas></div></div>
+        <div><div class="chart-title">SL (m/str)</div><div class="chart-wrap"><canvas id="chart-sl"></canvas></div></div>
+      </div>
+    </div>` : ""}
+
     <div class="footer">アップロード: ${new Date(meta.created_at).toLocaleDateString("ja-JP")}</div>
   `;
+  if (strokes.some(s => s.ST != null)) renderCharts(strokes, a.stroke || "");
+}
+
+// ── グラフ描画 ──
+let _charts = [];
+
+function destroyCharts() {
+  _charts.forEach(c => c.destroy());
+  _charts = [];
+}
+
+// 泳法別Yレンジ（config.pyのGRAPH_Y_RANGESに対応）
+const Y_RANGES = {
+  Fr:  { SV: [1.00, 2.10], ST: [0.80, 1.60], SL: [1.60, 2.40] },
+  Ba:  { SV: [1.40, 1.90], ST: [0.80, 1.30], SL: [1.10, 1.90] },
+  Br:  { SV: [1.10, 1.80], ST: [1.00, 1.60], SL: [1.40, 2.20] },
+  Fly: { SV: [1.40, 2.00], ST: [0.75, 1.20], SL: [1.10, 1.90] },
+  IM:  { SV: [1.20, 2.10], ST: [0.75, 1.70], SL: [1.10, 2.30] },
+  "":  { SV: [1.30, 1.60], ST: [0.80, 1.20], SL: [1.20, 1.70] },
+};
+
+// IM区間ごとの背景色
+const IM_BAND_COLORS = ["rgba(234,240,251,0.5)", "rgba(253,242,227,0.5)",
+                        "rgba(234,250,241,0.5)", "rgba(245,234,251,0.5)"];
+
+function makeChart(canvasId, labels, values, metric, stroke, bandGroups) {
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  const range = (Y_RANGES[stroke] || Y_RANGES[""])[metric] || [null, null];
+  const color = metric === "SV" ? "#2980b9" : metric === "ST" ? "#e67e22" : "#27ae60";
+
+  // 背景バンドプラグイン
+  const bandPlugin = {
+    id: "bandPlugin",
+    beforeDraw(chart) {
+      if (!bandGroups || !bandGroups.length) return;
+      const { ctx, chartArea, scales } = chart;
+      const xScale = scales.x;
+      let gi = 0, count = 0;
+      ctx.save();
+      for (const n of bandGroups) {
+        const x0 = xScale.getPixelForValue(count - 0.5);
+        const x1 = xScale.getPixelForValue(count + n - 0.5);
+        ctx.fillStyle = IM_BAND_COLORS[gi % IM_BAND_COLORS.length];
+        ctx.fillRect(Math.max(x0, chartArea.left), chartArea.top,
+                     Math.min(x1, chartArea.right) - Math.max(x0, chartArea.left),
+                     chartArea.bottom - chartArea.top);
+        gi++; count += n;
+      }
+      ctx.restore();
+    }
+  };
+
+  const chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: color + "22",
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+        tension: 0.3,
+        spanGaps: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 10 } }, grid: { color: "#eee" } },
+        y: {
+          min: range[0] ?? undefined,
+          max: range[1] ?? undefined,
+          ticks: { font: { size: 10 }, stepSize: 0.1 },
+          grid: { color: "#eee" }
+        }
+      }
+    },
+    plugins: [bandPlugin]
+  });
+  _charts.push(chart);
+}
+
+function renderCharts(strokes, stroke) {
+  const labels = strokes.map(s => s.label);
+  const svVals = strokes.map(s => s.SV);
+  const stVals = strokes.map(s => s.ST);
+  const slVals = strokes.map(s => s.SL);
+
+  // IM用バンドグループ（Fly×3, Ba×3, Br×3, Fr×3）
+  let bandGroups = null;
+  if (stroke === "IM") {
+    const groups = {};
+    for (const s of strokes) {
+      const g = s.label.replace(/\d/g, "").replace("-", "").split("-")[0];
+      // ラベルから種別を判定（例: "15-25m" → Fly区間）
+    }
+    // 3区間ずつ4グループ
+    if (strokes.length >= 12) bandGroups = [3, 3, 3, 3];
+    else if (strokes.length === 4) bandGroups = [1, 1, 1, 1];
+  }
+
+  setTimeout(() => {
+    makeChart("chart-sv", labels, svVals, "SV", stroke, bandGroups);
+    makeChart("chart-st", labels, stVals, "ST", stroke, bandGroups);
+    makeChart("chart-sl", labels, slVals, "SL", stroke, bandGroups);
+  }, 50);
 }
 
 // ── ユーティリティ ──
