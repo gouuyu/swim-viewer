@@ -258,8 +258,9 @@ function renderDetail(data, meta) {
 
   const pts50 = Object.keys(timing).filter(k => /^\d+m$/.test(k) && parseInt(k) % 50 === 0)
                        .sort((a,b) => parseInt(a) - parseInt(b));
-  const midPt      = pts50[Math.floor(pts50.length / 2)];
   const lastPt     = pts50[pts50.length - 1];
+  const totalDist  = lastPt ? parseInt(lastPt) : null;
+  const midPt      = totalDist ? `${totalDist / 2}m` : null;
   const sig        = timing["シグナル"] ?? 0;
   const firstHalf  = midPt && timing[midPt]  != null ? timing[midPt] - sig : null;
   const secondHalf = midPt && lastPt && timing[midPt] != null && timing[lastPt] != null
