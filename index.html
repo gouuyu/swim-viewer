@@ -148,7 +148,7 @@ function calcLap50m(timing) {
 function calcStrokes(sections, timing) {
   return sections.map(sec => {
     if (sec.start_time == null || sec.end_time == null)
-      return { label: sec.label, SV: null, ST: null, SL: null };
+      return { label: sec.label, start_distance: sec.start_distance ?? null, SV: null, ST: null, SL: null };
     const dur = sec.end_time - sec.start_time;
     const ST  = dur / 3;
     const tEntries = Object.entries(timing)
@@ -165,7 +165,7 @@ function calcStrokes(sections, timing) {
       const d = nextM - (prevM || 0), t = nextT - prevT;
       if (t > 0) { SV = d / t; SL = SV * ST; }
     }
-    return { label: sec.label, SV, ST, SL };
+    return { label: sec.label, start_distance: sec.start_distance ?? null, SV, ST, SL };
   });
 }
 
@@ -375,9 +375,9 @@ function getYRange(event, stroke, metric) {
   return [null, null];
 }
 
-// IM区間ごとの背景色
-const IM_BAND_COLORS = ["rgba(234,240,251,0.5)", "rgba(253,242,227,0.5)",
-                        "rgba(234,250,241,0.5)", "rgba(245,234,251,0.5)"];
+// 50mラップ／IM泳法ごとの背景色（PDFのLAP_BG_COLORSと同じ色）
+const IM_BAND_COLORS = ["rgba(234,240,251,0.6)", "rgba(253,242,227,0.6)",
+                        "rgba(234,250,241,0.6)", "rgba(245,234,251,0.6)"];
 
 function makeChart(canvasId, labels, values, metric, stroke, bandGroups, event) {
   const ctx = document.getElementById(canvasId).getContext("2d");
@@ -446,17 +446,27 @@ function renderCharts(strokes, stroke, event) {
   const stVals = strokes.map(s => s.ST);
   const slVals = strokes.map(s => s.SL);
 
-  // IM用バンドグループ（Fly×3, Ba×3, Br×3, Fr×3）
+  // バンドグループ計算
   let bandGroups = null;
   if (stroke === "IM") {
-    const groups = {};
-    for (const s of strokes) {
-      const g = s.label.replace(/\d/g, "").replace("-", "").split("-")[0];
-      // ラベルから種別を判定（例: "15-25m" → Fly区間）
-    }
-    // 3区間ずつ4グループ
+    // IM: 泳法ごとに色分け（Fly/Ba/Br/Fr）
     if (strokes.length >= 12) bandGroups = [3, 3, 3, 3];
     else if (strokes.length === 4) bandGroups = [1, 1, 1, 1];
+  } else {
+    // 非IM: 50mラップごとに色分け（PDFのLAP_BG_COLORSと同じ）
+    const lapNos = strokes.map(s =>
+      s.start_distance != null ? Math.floor(s.start_distance / 50) : 0
+    );
+    if (new Set(lapNos).size > 1) {
+      const groups = [];
+      let count = 1;
+      for (let i = 1; i < lapNos.length; i++) {
+        if (lapNos[i] === lapNos[i - 1]) { count++; }
+        else { groups.push(count); count = 1; }
+      }
+      groups.push(count);
+      bandGroups = groups;
+    }
   }
 
   setTimeout(() => {
