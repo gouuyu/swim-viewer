@@ -3,87 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>レース分析ビューアー</title>
+<title>Swim Analyzer</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-         background: #f0f4f8; color: #1a1a2e; font-size: 14px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+       background: #f0f4f8; color: #1a1a2e; font-size: 14px; }
 
-  #loading, #error { display: flex; align-items: center; justify-content: center;
-                     height: 100vh; font-size: 16px; color: #555; text-align: center; padding: 20px; }
-  #error { color: #c0392b; }
-  #content { display: none; padding: 12px; max-width: 600px; margin: 0 auto; }
+/* ── 共通 ── */
+#loading { display: flex; align-items: center; justify-content: center;
+           height: 100vh; font-size: 16px; color: #555; }
+#error   { display: none; align-items: center; justify-content: center;
+           height: 100vh; font-size: 15px; color: #c0392b; text-align: center; padding: 20px; }
 
-  /* ヘッダー */
-  .header { background: linear-gradient(135deg, #1A5276, #2980b9);
-            color: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-  .header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-  .header .meta { font-size: 12px; opacity: 0.85; line-height: 1.8; }
+.page { display: none; padding: 12px; max-width: 680px; margin: 0 auto; }
 
-  /* セクション */
-  .section { background: white; border-radius: 12px; padding: 14px;
-             margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-  .section-title { font-size: 12px; font-weight: 700; color: #1A5276;
-                   text-transform: uppercase; letter-spacing: 0.5px;
-                   border-bottom: 2px solid #1A5276; padding-bottom: 6px; margin-bottom: 10px; }
+/* ── ヘッダー ── */
+.header { background: linear-gradient(135deg, #1A5276, #2980b9);
+          color: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.header h1 { font-size: 20px; font-weight: 700; }
+.header .sub { font-size: 12px; opacity: 0.8; margin-top: 3px; }
 
-  /* レースタイム大表示 */
-  .race-time { text-align: center; padding: 8px 0; }
-  .race-time .time { font-size: 36px; font-weight: 700; color: #1A5276; letter-spacing: 2px; }
-  .race-time .label { font-size: 11px; color: #888; margin-top: 2px; }
+/* ── セクション ── */
+.section { background: white; border-radius: 12px; padding: 14px;
+           margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.section-title { font-size: 12px; font-weight: 700; color: #1A5276;
+                 border-bottom: 2px solid #1A5276; padding-bottom: 6px; margin-bottom: 10px; }
 
-  /* カードグリッド */
-  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .card { background: #eaf0fb; border-radius: 8px; padding: 10px; text-align: center; }
-  .card .val { font-size: 18px; font-weight: 700; color: #1A5276; }
-  .card .lbl { font-size: 10px; color: #666; margin-top: 2px; }
+/* ── ダッシュボード：フィルター ── */
+.filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-row select { flex: 1; min-width: 120px; padding: 8px 10px;
+                     border: 1px solid #ddd; border-radius: 8px;
+                     font-size: 13px; background: white; color: #333; }
+.filter-row button { padding: 8px 16px; background: #1A5276; color: white;
+                     border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.filter-row button:hover { background: #2980b9; }
 
-  /* テーブル */
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { background: #1A5276; color: white; padding: 6px 8px; text-align: center; font-weight: 600; }
-  td { padding: 5px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; }
-  tr:nth-child(even) td { background: #f7f9fc; }
-  tr:last-child td { border-bottom: none; }
-  .label-cell { text-align: left; color: #444; }
+/* ── ダッシュボード：カード一覧 ── */
+.race-list { display: flex; flex-direction: column; gap: 8px; }
+.race-card { background: white; border-radius: 10px; padding: 12px 14px;
+             box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer;
+             border-left: 4px solid #2980b9; transition: transform 0.1s, box-shadow 0.1s; }
+.race-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.race-card .name { font-size: 16px; font-weight: 700; color: #1A5276; }
+.race-card .event-badge { display: inline-block; background: #eaf0fb; color: #1A5276;
+                          font-size: 11px; font-weight: 600; padding: 2px 8px;
+                          border-radius: 12px; margin-left: 6px; }
+.race-card .meta { font-size: 11px; color: #888; margin-top: 4px; }
+.race-card .time { font-size: 18px; font-weight: 700; color: #1A5276; float: right; }
+.no-result { text-align: center; color: #aaa; padding: 32px 0; font-size: 14px; }
 
-  /* ストローク分析 */
-  .stroke-group-header { background: #d6eaf8; font-weight: 700; color: #1A5276; }
-  .good { color: #1E8449; font-weight: 600; }
-  .bad  { color: #C0392B; font-weight: 600; }
+/* ── 詳細ページ ── */
+.back-btn { display: inline-flex; align-items: center; gap: 6px;
+            color: #2980b9; cursor: pointer; font-size: 13px; margin-bottom: 10px; }
+.back-btn:hover { text-decoration: underline; }
 
-  /* フッター */
-  .footer { text-align: center; color: #aaa; font-size: 10px; padding: 16px 0; }
+.race-time { text-align: center; padding: 8px 0; }
+.race-time .time { font-size: 36px; font-weight: 700; color: #1A5276; letter-spacing: 2px; }
+.race-time .label { font-size: 11px; color: #888; margin-top: 2px; }
+
+.card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.card { background: #eaf0fb; border-radius: 8px; padding: 10px; text-align: center; }
+.card .val { font-size: 18px; font-weight: 700; color: #1A5276; }
+.card .lbl { font-size: 10px; color: #666; margin-top: 2px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { background: #1A5276; color: white; padding: 6px 8px; text-align: center; font-weight: 600; }
+td { padding: 5px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+tr:nth-child(even) td { background: #f7f9fc; }
+tr:last-child td { border-bottom: none; }
+.label-cell { text-align: left; color: #444; }
+
+.footer { text-align: center; color: #aaa; font-size: 10px; padding: 16px 0; }
 </style>
 </head>
 <body>
 
-<div id="loading">データを読み込み中...</div>
+<div id="loading">読み込み中...</div>
 <div id="error"></div>
-<div id="content"></div>
+
+<!-- ダッシュボード -->
+<div id="page-dashboard" class="page">
+  <div class="header">
+    <h1>🏊 Swim Analyzer</h1>
+    <div class="sub">チームレース分析データベース</div>
+  </div>
+  <div class="section">
+    <div class="section-title">検索・絞り込み</div>
+    <div class="filter-row">
+      <select id="filter-name"><option value="">すべての選手</option></select>
+      <select id="filter-event"><option value="">すべての種目</option></select>
+      <button onclick="applyFilter()">検索</button>
+    </div>
+  </div>
+  <div id="race-list" class="race-list"></div>
+</div>
+
+<!-- 詳細 -->
+<div id="page-detail" class="page">
+  <div class="back-btn" onclick="showDashboard()">← 一覧に戻る</div>
+  <div id="detail-content"></div>
+</div>
 
 <script>
 const SUPABASE_URL = "https://gxvrqmpdarvqcxeyvigk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4dnJxbXBkYXJ2cWN4ZXl2aWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwODc0NTYsImV4cCI6MjEwMTY2MzQ1Nn0.oh3V062aHMySVN4cFOivu8oal3yeGa7SgXIkTvi3grg";
 
-// URLからトークン取得 (/r/{token})
-function getToken() {
-  const m = location.pathname.match(/\/r\/([0-9a-f-]{36})/i);
-  return m ? m[1] : null;
-}
+let allSessions = [];
 
-// 時間フォーマット (秒 → MM:SS.ss)
 function fmtTime(s) {
   if (s == null) return "-";
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(2).padStart(5, "0");
   return m > 0 ? `${m}:${sec}` : `${sec}`;
 }
+function fmtVal(v, d = 2) { return v == null ? "-" : Number(v).toFixed(d); }
 
-function fmtVal(v, d = 2) {
-  return v == null ? "-" : Number(v).toFixed(d);
-}
-
-// タイミングから計算
 function calcRaceTime(timing) {
   const keys = Object.keys(timing).filter(k => k !== "シグナル");
   if (!keys.length) return null;
@@ -99,218 +133,220 @@ function calcLap50m(timing) {
     .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
   let prev = { key: "シグナル", val: timing["シグナル"] ?? 0 };
   for (const [key, val] of pts50) {
-    if (val != null && prev.val != null)
-      laps[`${prev.key}→${key}`] = val - prev.val;
+    if (val != null && prev.val != null) laps[`${prev.key}→${key}`] = val - prev.val;
     prev = { key, val };
   }
   return laps;
 }
 
-// ストローク区間計算
-function calcStroke(sec) {
-  const { start_distance, end_distance, start_time, end_time } = sec;
-  if (start_time == null || end_time == null) return null;
-  const dur  = end_time - start_time;
-  const dist = end_distance - start_distance;
-  const splitTime = (() => {
-    // タイミングからこの区間のスプリットタイムを推定（ストローク区間の中間）
-    return null; // 直接計算不可のためnull
-  })();
-  const ST = dur / 3;
-  // SVはスプリットタイムが必要なため省略、ここではST/SLは計算できない
-  return { ST };
-}
-
-// ストローク分析テーブル行
-function strokeRows(sections, timing) {
-  // 各区間のSVを計算するためにタイミングを使う
-  const rows = [];
-  for (const sec of sections) {
-    if (sec.start_time == null || sec.end_time == null) {
-      rows.push({ label: sec.label, SV: null, ST: null, SL: null });
-      continue;
-    }
+function calcStrokes(sections, timing) {
+  return sections.map(sec => {
+    if (sec.start_time == null || sec.end_time == null)
+      return { label: sec.label, SV: null, ST: null, SL: null };
     const dur = sec.end_time - sec.start_time;
     const ST  = dur / 3;
-
-    // SVを計算するために直前の50mタイム差を使う
-    // sec.start_distanceとend_distanceを含む区間のスプリットを探す
-    const startDist = sec.start_distance;
-    const endDist   = sec.end_distance;
-    // タイミングポイントから前後を探す
     const tEntries = Object.entries(timing)
       .filter(([k]) => /^\d+m$/.test(k))
       .map(([k, v]) => [parseInt(k), v])
       .sort((a, b) => a[0] - b[0]);
-
     let prevM = null, prevT = null, nextM = null, nextT = null;
-    const sig = timing["シグナル"] ?? 0;
     for (const [m, t] of tEntries) {
-      if (m <= startDist) { prevM = m; prevT = t; }
-      if (m >= endDist && nextM == null) { nextM = m; nextT = t; }
+      if (m <= sec.start_distance) { prevM = m; prevT = t; }
+      if (m >= sec.end_distance && nextM == null) { nextM = m; nextT = t; }
     }
-
     let SV = null, SL = null;
     if (prevM != null && nextM != null && prevT != null && nextT != null) {
-      const sectionDist = nextM - (prevM === 0 ? 0 : prevM);
-      const sectionTime = nextT - prevT;
-      if (sectionTime > 0) {
-        SV = (nextM - (prevM || 0)) / sectionTime;
-        // もっと精度よく: ストローク区間の距離のみ
-        const strokeDist = endDist - startDist;
-        SV = strokeDist / (sectionTime * strokeDist / (nextM - (prevM || 0)));
-        // 単純に: SV = stroke_dist / (stroke_dist / section_dist * section_time)
-        SV = sectionDist > 0 ? strokeDist / (sectionTime * strokeDist / sectionDist) : null;
-        // 最もシンプル: 区間距離 / 区間タイム  (近似)
-        SV = sectionDist > 0 ? sectionDist / sectionTime : null;
-        SL = SV != null ? SV * ST : null;
-      }
+      const d = nextM - (prevM || 0), t = nextT - prevT;
+      if (t > 0) { SV = d / t; SL = SV * ST; }
     }
-
-    rows.push({ label: sec.label, SV, ST, SL });
-  }
-  return rows;
+    return { label: sec.label, SV, ST, SL };
+  });
 }
 
-function showError(msg) {
-  document.getElementById("loading").style.display = "none";
-  const el = document.getElementById("error");
-  el.innerHTML = `<div>⚠️ ${msg}</div>`;
-  el.style.display = "flex";
-}
-
-async function load() {
-  const token = getToken();
-  if (!token) { showError("URLが正しくありません"); return; }
-
+// ── ダッシュボード ──
+async function loadDashboard() {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/race_sessions?share_token=eq.${token}&select=*`;
-    const res = await fetch(url, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-    });
+    const url = `${SUPABASE_URL}/rest/v1/race_sessions?select=id,share_token,athlete_name,event,competition,date,created_at,data&order=created_at.desc`;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = await res.json();
-    if (!rows.length) { showError("データが見つかりません"); return; }
-    render(rows[0].data, rows[0]);
+    allSessions = await res.json();
+
+    // プルダウン生成
+    const names  = [...new Set(allSessions.map(s => s.athlete_name).filter(Boolean))].sort();
+    const events = [...new Set(allSessions.map(s => s.event).filter(Boolean))].sort();
+    const nSel = document.getElementById("filter-name");
+    const eSel = document.getElementById("filter-event");
+    names.forEach(n  => { const o = document.createElement("option"); o.value = n; o.textContent = n; nSel.appendChild(o); });
+    events.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; eSel.appendChild(o); });
+
+    hide("loading");
+    show("page-dashboard");
+    renderList(allSessions);
   } catch(e) {
-    showError(`読み込み失敗: ${e.message}`);
+    showError(e.message);
   }
 }
 
-function render(data, meta) {
-  const a       = data.athlete || {};
-  const timing  = data.timing  || {};
+function applyFilter() {
+  const name  = document.getElementById("filter-name").value;
+  const event = document.getElementById("filter-event").value;
+  const filtered = allSessions.filter(s =>
+    (!name  || s.athlete_name === name) &&
+    (!event || s.event === event)
+  );
+  renderList(filtered);
+}
+
+function renderList(sessions) {
+  const el = document.getElementById("race-list");
+  if (!sessions.length) { el.innerHTML = `<div class="no-result">該当するデータがありません</div>`; return; }
+  el.innerHTML = sessions.map(s => {
+    const t = s.data?.timing ? calcRaceTime(s.data.timing) : null;
+    return `<div class="race-card" onclick="showDetail('${s.share_token}')">
+      <div>
+        <span class="time">${fmtTime(t)}</span>
+        <span class="name">${s.athlete_name || "-"}</span>
+        <span class="event-badge">${s.event || "-"}</span>
+      </div>
+      <div class="meta">🏆 ${s.competition || "-"}　📅 ${s.date || "-"}</div>
+    </div>`;
+  }).join("");
+}
+
+// ── 詳細 ──
+function showDetail(token) {
+  const s = allSessions.find(r => r.share_token === token);
+  if (!s) return;
+  history.pushState({ token }, "", `/r/${token}`);
+  renderDetail(s.data, s);
+  hide("page-dashboard");
+  show("page-detail");
+}
+
+function showDashboard() {
+  history.pushState({}, "", "/");
+  hide("page-detail");
+  show("page-dashboard");
+}
+
+function renderDetail(data, meta) {
+  const a        = data.athlete || {};
+  const timing   = data.timing  || {};
   const sections = data.stroke_sections || [];
-  const sc      = data.stroke_counts || {};
+  const sc       = data.stroke_counts   || {};
+  const raceTime = calcRaceTime(timing);
+  const laps     = calcLap50m(timing);
+  const strokes  = calcStrokes(sections, timing);
 
-  const raceTime  = calcRaceTime(timing);
-  const laps      = calcLap50m(timing);
-  const strokes   = strokeRows(sections, timing);
-
-  // 前後半
   const pts50 = Object.keys(timing).filter(k => /^\d+m$/.test(k) && parseInt(k) % 50 === 0)
                        .sort((a,b) => parseInt(a) - parseInt(b));
-  const midPt = pts50[Math.floor(pts50.length / 2)];
-  const sig   = timing["シグナル"] ?? 0;
-  const firstHalf  = midPt && timing[midPt] != null ? timing[midPt] - sig : null;
+  const midPt      = pts50[Math.floor(pts50.length / 2)];
   const lastPt     = pts50[pts50.length - 1];
-  const secondHalf = (midPt && lastPt && timing[midPt] != null && timing[lastPt] != null)
+  const sig        = timing["シグナル"] ?? 0;
+  const firstHalf  = midPt && timing[midPt]  != null ? timing[midPt] - sig : null;
+  const secondHalf = midPt && lastPt && timing[midPt] != null && timing[lastPt] != null
                      ? timing[lastPt] - timing[midPt] : null;
 
-  document.title = `${a.name || "選手"} - ${a.event || ""} レース分析`;
-
-  const html = `
+  document.getElementById("detail-content").innerHTML = `
     <div class="header">
       <h1>${a.name || "選手名未設定"} <span style="font-size:14px;opacity:.8">${a.event || ""}</span></h1>
-      <div class="meta">
-        ${a.competition ? `🏆 ${a.competition}` : ""}
-        ${a.date        ? `　📅 ${a.date}` : ""}
-        ${a.round_name  ? `　${a.round_name}` : ""}
-      </div>
+      <div class="sub">${[a.competition, a.date, a.round_name].filter(Boolean).join("　")}</div>
     </div>
 
-    <!-- レースタイム -->
     <div class="section">
       <div class="section-title">レース結果</div>
       <div class="race-time">
         <div class="time">${fmtTime(raceTime)}</div>
         <div class="label">レースタイム</div>
       </div>
-      ${(firstHalf != null || secondHalf != null) ? `
-      <div class="card-grid" style="margin-top:12px">
-        <div class="card">
-          <div class="val">${fmtTime(firstHalf)}</div>
-          <div class="lbl">前半 ${midPt || ""}</div>
-        </div>
-        <div class="card">
-          <div class="val">${fmtTime(secondHalf)}</div>
-          <div class="lbl">後半 ${midPt || ""}→${lastPt || ""}</div>
-        </div>
+      ${firstHalf != null || secondHalf != null ? `
+      <div class="card-grid">
+        <div class="card"><div class="val">${fmtTime(firstHalf)}</div><div class="lbl">前半 ${midPt||""}</div></div>
+        <div class="card"><div class="val">${fmtTime(secondHalf)}</div><div class="lbl">後半 ${midPt||""}→${lastPt||""}</div></div>
       </div>` : ""}
     </div>
 
-    <!-- 50mラップ -->
     ${Object.keys(laps).length ? `
     <div class="section">
       <div class="section-title">50mラップ</div>
       <table>
         <tr><th>区間</th><th>タイム</th></tr>
-        ${Object.entries(laps).map(([k,v]) =>
-          `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`
-        ).join("")}
+        ${Object.entries(laps).map(([k,v]) => `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`).join("")}
       </table>
     </div>` : ""}
 
-    <!-- 通過タイム -->
     <div class="section">
       <div class="section-title">通過タイム</div>
       <table>
         <tr><th>ポイント</th><th>通過時刻</th></tr>
         ${Object.entries(timing).filter(([k]) => k !== "シグナル").map(([k,v]) =>
-          `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`
-        ).join("")}
+          `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`).join("")}
       </table>
     </div>
 
-    <!-- ストローク分析 -->
-    ${strokes.some(s => s.SV != null || s.ST != null) ? `
+    ${strokes.some(s => s.ST != null) ? `
     <div class="section">
       <div class="section-title">ストローク分析</div>
       <table>
         <tr><th>区間</th><th>SV (m/s)</th><th>ST (s)</th><th>SL (m)</th></tr>
-        ${strokes.map(s =>
-          `<tr>
-            <td class="label-cell">${s.label}</td>
-            <td>${fmtVal(s.SV)}</td>
-            <td>${fmtVal(s.ST)}</td>
-            <td>${fmtVal(s.SL)}</td>
-          </tr>`
-        ).join("")}
+        ${strokes.map(s => `<tr>
+          <td class="label-cell">${s.label}</td>
+          <td>${fmtVal(s.SV)}</td><td>${fmtVal(s.ST)}</td><td>${fmtVal(s.SL)}</td>
+        </tr>`).join("")}
       </table>
     </div>` : ""}
 
-    <!-- ストローク数 -->
-    ${Object.keys(sc).length && Object.values(sc).some(v => v != null) ? `
+    ${Object.values(sc).some(v => v != null) ? `
     <div class="section">
       <div class="section-title">ストローク数</div>
       <table>
         <tr><th>ラップ</th><th>S数</th></tr>
         ${Object.entries(sc).filter(([,v]) => v != null).map(([k,v]) =>
-          `<tr><td class="label-cell">${k}</td><td>${v}</td></tr>`
-        ).join("")}
+          `<tr><td class="label-cell">${k}</td><td>${v}</td></tr>`).join("")}
       </table>
     </div>` : ""}
 
-    <div class="footer">Swim Analyzer — ${new Date(meta.created_at).toLocaleDateString("ja-JP")}</div>
+    <div class="footer">アップロード: ${new Date(meta.created_at).toLocaleDateString("ja-JP")}</div>
   `;
-
-  document.getElementById("loading").style.display = "none";
-  const content = document.getElementById("content");
-  content.innerHTML = html;
-  content.style.display = "block";
 }
 
-load();
+// ── ユーティリティ ──
+function show(id) { document.getElementById(id).style.display = "block"; }
+function hide(id) { document.getElementById(id).style.display = "none"; }
+function showError(msg) {
+  hide("loading");
+  const el = document.getElementById("error");
+  el.innerHTML = `⚠️ ${msg}`;
+  el.style.display = "flex";
+}
+
+// ── エントリーポイント ──
+async function main() {
+  const token = location.pathname.match(/\/r\/([0-9a-f-]{36})/i)?.[1];
+  if (token) {
+    // 直接詳細URLでアクセスされた場合
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/race_sessions?share_token=eq.${token}&select=*`;
+      const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+      const rows = await res.json();
+      if (!rows.length) { showError("データが見つかりません"); return; }
+      allSessions = rows;
+      hide("loading");
+      show("page-detail");
+      renderDetail(rows[0].data, rows[0]);
+    } catch(e) { showError(e.message); }
+  } else {
+    await loadDashboard();
+  }
+}
+
+window.addEventListener("popstate", e => {
+  const token = location.pathname.match(/\/r\/([0-9a-f-]{36})/i)?.[1];
+  if (token) { showDetail(token); }
+  else { hide("page-detail"); show("page-dashboard"); }
+});
+
+main();
 </script>
 </body>
 </html>
