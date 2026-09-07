@@ -80,6 +80,34 @@ tr:last-child td { border-bottom: none; }
 .chart-grid { display: flex; flex-direction: column; gap: 12px; }
 .chart-wrap { position: relative; height: 200px; }
 .chart-title { font-size: 11px; font-weight: 700; color: #1A5276; margin-bottom: 4px; }
+
+/* ── 比較モード ── */
+.cmp-toggle-btn { width:100%; background:#e8f4fd; color:#1a5276; border:1px solid #aed6f1;
+                  border-radius:8px; padding:10px 14px; font-size:14px; font-weight:600;
+                  cursor:pointer; text-align:left; }
+.cmp-panel { margin-top:10px; padding:12px; background:#f7f9fc; border-radius:8px;
+             border:1px solid #dce3ec; }
+.cmp-group { margin-bottom:12px; }
+.cmp-group-lbl { font-size:11px; font-weight:700; color:#1a5276; margin-bottom:5px; letter-spacing:.5px; }
+.cmp-group-lbl.b { color:#922b21; }
+.cmp-selrow { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+.cmp-selrow select { flex:1; min-width:0; padding:7px 8px; border:1px solid #ddd;
+                     border-radius:7px; font-size:12px; background:white; }
+.cmp-session-sel { width:100%; padding:7px 8px; border:1px solid #ddd;
+                   border-radius:7px; font-size:12px; background:white; }
+.cmp-go-btn { width:100%; background:#1a5276; color:white; border:none; border-radius:8px;
+              padding:12px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px; }
+.cmp-go-btn:hover { background:#2980b9; }
+
+/* 比較ページ */
+.cmp-header-bar { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:4px 0 14px; }
+.cmp-badge { padding:5px 13px; border-radius:16px; font-size:12px; font-weight:700; }
+.cmp-badge.a { background:#d6eaf8; color:#1a5276; }
+.cmp-badge.b { background:#fadbd8; color:#922b21; }
+.cmp-tbl th.ha { background:#1a5276; }
+.cmp-tbl th.hb { background:#922b21; }
+.cmp-tbl td.dg { color:#1e8449; font-weight:600; }
+.cmp-tbl td.dr { color:#c0392b; font-weight:600; }
 </style>
 </head>
 <body>
@@ -101,6 +129,28 @@ tr:last-child td { border-bottom: none; }
       <button onclick="applyFilter()">検索</button>
     </div>
   </div>
+  <div class="section">
+    <button class="cmp-toggle-btn" onclick="toggleCmpPanel()">⚖️ 比較モード</button>
+    <div id="cmp-panel" class="cmp-panel" style="display:none">
+      <div class="cmp-group">
+        <div class="cmp-group-lbl">▶ セッション A</div>
+        <div class="cmp-selrow">
+          <select id="cmp-na" onchange="onCmpName('a')"><option value="">選手を選択</option></select>
+          <select id="cmp-ea" onchange="onCmpEvent('a')"><option value="">種目</option></select>
+        </div>
+        <select id="cmp-sa" class="cmp-session-sel"><option value="">レースを選択</option></select>
+      </div>
+      <div class="cmp-group">
+        <div class="cmp-group-lbl b">▶ セッション B</div>
+        <div class="cmp-selrow">
+          <select id="cmp-nb" onchange="onCmpName('b')"><option value="">選手を選択</option></select>
+          <select id="cmp-eb" onchange="onCmpEvent('b')"><option value="">種目</option></select>
+        </div>
+        <select id="cmp-sb" class="cmp-session-sel"><option value="">レースを選択</option></select>
+      </div>
+      <button class="cmp-go-btn" onclick="startCompare()">⚖️ 比較する</button>
+    </div>
+  </div>
   <div id="race-list" class="race-list"></div>
 </div>
 
@@ -108,6 +158,15 @@ tr:last-child td { border-bottom: none; }
 <div id="page-detail" class="page">
   <div class="back-btn" onclick="showDashboard()">← 一覧に戻る</div>
   <div id="detail-content"></div>
+</div>
+
+<!-- 比較 -->
+<div id="page-compare" class="page">
+  <div class="back-btn" onclick="showDashboard()">← 一覧に戻る</div>
+  <div class="header">
+    <h1>⚖️ レース比較</h1>
+  </div>
+  <div id="compare-content"></div>
 </div>
 
 <script>
@@ -216,6 +275,12 @@ async function loadDashboard() {
     names.forEach(n  => { const o = document.createElement("option"); o.value = n; o.textContent = n; nSel.appendChild(o); });
     events.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; eSel.appendChild(o); });
 
+    // 比較モード用の選手プルダウンも同時に生成
+    ["cmp-na", "cmp-nb"].forEach(id => {
+      const s = document.getElementById(id);
+      names.forEach(n => { const o = document.createElement("option"); o.value = n; o.textContent = n; s.appendChild(o); });
+    });
+
     hide("loading");
     show("page-dashboard");
     renderList(allSessions);
@@ -264,7 +329,214 @@ function showDashboard() {
   destroyCharts();
   history.pushState({}, "", "/");
   hide("page-detail");
+  hide("page-compare");
   show("page-dashboard");
+}
+
+// ── 比較モード ──
+function toggleCmpPanel() {
+  const p = document.getElementById("cmp-panel");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+}
+
+function _buildOpts(sel, items) {
+  sel.innerHTML = "";
+  const def = document.createElement("option"); def.value = ""; def.textContent = "選択してください";
+  sel.appendChild(def);
+  items.forEach(x => { const o = document.createElement("option"); o.value = x.val; o.textContent = x.lbl; sel.appendChild(o); });
+}
+
+function onCmpName(ab) {
+  const name = document.getElementById(`cmp-n${ab}`).value;
+  const eSel = document.getElementById(`cmp-e${ab}`);
+  const sSel = document.getElementById(`cmp-s${ab}`);
+  const events = [...new Set(allSessions.filter(s => !name || s.athlete_name === name).map(s => getEventLabel(s)).filter(Boolean))].sort();
+  _buildOpts(eSel, events.map(e => ({ val: e, lbl: e })));
+  _buildOpts(sSel, []);
+}
+
+function onCmpEvent(ab) {
+  const name  = document.getElementById(`cmp-n${ab}`).value;
+  const event = document.getElementById(`cmp-e${ab}`).value;
+  const sSel  = document.getElementById(`cmp-s${ab}`);
+  const filtered = allSessions.filter(s =>
+    (!name  || s.athlete_name === name) && (!event || getEventLabel(s) === event)
+  );
+  _buildOpts(sSel, filtered.map(s => {
+    const t = s.data?.timing ? calcRaceTime(s.data.timing) : null;
+    return { val: s.share_token, lbl: `${s.competition || "-"}  ${s.date || "-"}  ${fmtTime(t)}` };
+  }));
+}
+
+function startCompare() {
+  const ta = document.getElementById("cmp-sa").value;
+  const tb = document.getElementById("cmp-sb").value;
+  if (!ta || !tb) { alert("A・B両方のレースを選択してください"); return; }
+  if (ta === tb)  { alert("同じレースは比較できません"); return; }
+  showCompare(ta, tb);
+}
+
+function showCompare(ta, tb) {
+  const sA = allSessions.find(r => r.share_token === ta);
+  const sB = allSessions.find(r => r.share_token === tb);
+  if (!sA || !sB) return;
+  history.pushState({ compare: { ta, tb } }, "", `/compare?a=${ta}&b=${tb}`);
+  destroyCharts();
+  renderCompare(sA, sB);
+  hide("page-dashboard");
+  hide("page-detail");
+  show("page-compare");
+}
+
+function renderCompare(sA, sB) {
+  const dA = sA.data || {}, dB = sB.data || {};
+  const aA = dA.athlete || {}, aB = dB.athlete || {};
+  const tA = dA.timing  || {}, tB = dB.timing  || {};
+  const secA = dA.stroke_sections || [], secB = dB.stroke_sections || [];
+  const scA  = dA.stroke_counts   || {}, scB  = dB.stroke_counts   || {};
+
+  const strokesA = calcStrokes(secA, tA), strokesB = calcStrokes(secB, tB);
+  const lapsA    = calcLap50m(tA),        lapsB    = calcLap50m(tB);
+  const splitsA  = calcSplits(tA),        splitsB  = calcSplits(tB);
+  const raceA    = calcRaceTime(tA),      raceB    = calcRaceTime(tB);
+
+  const lblA = `${sA.athlete_name || "A"} ${getEventLabel(sA)}`;
+  const lblB = `${sB.athlete_name || "B"} ${getEventLabel(sB)}`;
+
+  const EPS = 0.005; // 小数2桁表示で同値と見なす閾値
+  // 差セル（時間: 低い方が良い。diff=A-B, 負ならAが良い）
+  function tdTime(a, b) {
+    if (a == null || b == null) return "<td>-</td>";
+    const d = a - b;
+    const cls = Math.abs(d) < EPS ? "" : d < 0 ? "dg" : "dr";
+    return `<td class="${cls}">${(d >= 0 ? "+" : "") + d.toFixed(2)}</td>`;
+  }
+  // 差セル（値: 高い方が良い hib=true, 低い方が良い hib=false）
+  function tdVal(a, b, hib = true) {
+    if (a == null || b == null) return "<td>-</td>";
+    const d = a - b, better = hib ? d > 0 : d < 0;
+    const cls = Math.abs(d) < EPS ? "" : better ? "dg" : "dr";
+    return `<td class="${cls}">${(d >= 0 ? "+" : "") + d.toFixed(2)}</td>`;
+  }
+
+  const allLapKeys    = [...new Set([...Object.keys(lapsA), ...Object.keys(lapsB)])];
+  const splitMapA     = Object.fromEntries(splitsA.map(s => [s.label, s.time]));
+  const splitMapB     = Object.fromEntries(splitsB.map(s => [s.label, s.time]));
+  const allSplitKeys  = [...new Set([...splitsA.map(s => s.label), ...splitsB.map(s => s.label)])];
+  const strokeMapA    = Object.fromEntries(strokesA.map(s => [s.label, s]));
+  const strokeMapB    = Object.fromEntries(strokesB.map(s => [s.label, s]));
+  const allStrokeKeys = [...new Set([...strokesA.map(s => s.label), ...strokesB.map(s => s.label)])];
+  const allScKeys     = [...new Set([...Object.keys(scA), ...Object.keys(scB)])];
+  const hasStrokes    = strokesA.some(s => s.ST != null) || strokesB.some(s => s.ST != null);
+  const hasSc         = allScKeys.some(k => scA[k] != null || scB[k] != null);
+  const showSplit     = allSplitKeys.length > allLapKeys.length;
+
+  function cmpTable(title, rows) {
+    return `<div class="section">
+      <div class="section-title">${title}</div>
+      <table class="cmp-tbl">${rows}</table>
+    </div>`;
+  }
+  const head4 = `<tr><th>区間</th><th class="ha">A</th><th class="hb">B</th><th>差(A−B)</th></tr>`;
+
+  document.getElementById("compare-content").innerHTML = `
+    <div class="cmp-header-bar">
+      <span class="cmp-badge a">A: ${lblA}</span>
+      <span class="cmp-badge b">B: ${lblB}</span>
+    </div>
+
+    ${cmpTable("レースタイム", `
+      <tr><th></th><th class="ha">A</th><th class="hb">B</th><th>差(A−B)</th></tr>
+      <tr><td class="label-cell">合計</td><td>${fmtTime(raceA)}</td><td>${fmtTime(raceB)}</td>${tdTime(raceA, raceB)}</tr>
+    `)}
+
+    ${allLapKeys.length ? cmpTable("50mラップ", head4 + allLapKeys.map(k =>
+      `<tr><td class="label-cell">${k}</td><td>${fmtTime(lapsA[k]??null)}</td><td>${fmtTime(lapsB[k]??null)}</td>${tdTime(lapsA[k]??null,lapsB[k]??null)}</tr>`
+    ).join("")) : ""}
+
+    ${showSplit ? cmpTable("区間タイム", head4 + allSplitKeys.map(k =>
+      `<tr><td class="label-cell">${k}</td>
+       <td>${splitMapA[k]!=null?splitMapA[k].toFixed(2):"-"}</td>
+       <td>${splitMapB[k]!=null?splitMapB[k].toFixed(2):"-"}</td>
+       ${tdTime(splitMapA[k]??null,splitMapB[k]??null)}</tr>`
+    ).join("")) : ""}
+
+    ${allStrokeKeys.length ? `
+      ${cmpTable("SV (m/s)", head4 + allStrokeKeys.map(k =>
+        `<tr><td class="label-cell">${k}</td><td>${fmtVal(strokeMapA[k]?.SV)}</td><td>${fmtVal(strokeMapB[k]?.SV)}</td>${tdVal(strokeMapA[k]?.SV??null,strokeMapB[k]?.SV??null,true)}</tr>`
+      ).join(""))}
+      ${cmpTable("ST (s)", head4 + allStrokeKeys.map(k =>
+        `<tr><td class="label-cell">${k}</td><td>${fmtVal(strokeMapA[k]?.ST)}</td><td>${fmtVal(strokeMapB[k]?.ST)}</td>${tdVal(strokeMapA[k]?.ST??null,strokeMapB[k]?.ST??null,false)}</tr>`
+      ).join(""))}
+      ${cmpTable("SL (m)", head4 + allStrokeKeys.map(k =>
+        `<tr><td class="label-cell">${k}</td><td>${fmtVal(strokeMapA[k]?.SL)}</td><td>${fmtVal(strokeMapB[k]?.SL)}</td>${tdVal(strokeMapA[k]?.SL??null,strokeMapB[k]?.SL??null,true)}</tr>`
+      ).join(""))}
+    ` : ""}
+
+    ${hasSc ? cmpTable("ストローク数", `
+      <tr><th>ラップ</th><th class="ha">A</th><th class="hb">B</th><th>差(A−B)</th></tr>
+      ${allScKeys.filter(k => scA[k]!=null||scB[k]!=null).map(k =>
+        `<tr><td class="label-cell">${k}</td><td>${scA[k]??"-"}</td><td>${scB[k]??"-"}</td>
+         ${scA[k]!=null&&scB[k]!=null
+           ? (() => { const d=scA[k]-scB[k]; return `<td class="${d<0?"dg":d>0?"dr":""}">${d>0?"+":""}${d}</td>`; })()
+           : "<td>-</td>"}</tr>`
+      ).join("")}
+    `) : ""}
+
+    ${hasStrokes ? `
+    <div class="section">
+      <div class="section-title">グラフ比較</div>
+      <div style="margin-bottom:14px">
+        <div class="chart-title" style="color:#2980b9">SV (m/s)</div>
+        <canvas id="cmp-sv" height="200"></canvas>
+      </div>
+      <div style="margin-bottom:14px">
+        <div class="chart-title" style="color:#e67e22">ST (s)</div>
+        <canvas id="cmp-st" height="200"></canvas>
+      </div>
+      <div>
+        <div class="chart-title" style="color:#27ae60">SL (m)</div>
+        <canvas id="cmp-sl" height="200"></canvas>
+      </div>
+    </div>` : ""}
+  `;
+
+  if (hasStrokes) {
+    const stroke = aA.stroke || aB.stroke || "";
+    const event  = aA.event  || aB.event  || "";
+    const labels = allStrokeKeys;
+    setTimeout(() => {
+      makeCmpChart("cmp-sv", labels, labels.map(l => strokeMapA[l]?.SV??null), labels.map(l => strokeMapB[l]?.SV??null), "SV", stroke, event, lblA, lblB);
+      makeCmpChart("cmp-st", labels, labels.map(l => strokeMapA[l]?.ST??null), labels.map(l => strokeMapB[l]?.ST??null), "ST", stroke, event, lblA, lblB);
+      makeCmpChart("cmp-sl", labels, labels.map(l => strokeMapA[l]?.SL??null), labels.map(l => strokeMapB[l]?.SL??null), "SL", stroke, event, lblA, lblB);
+    }, 50);
+  }
+}
+
+function makeCmpChart(canvasId, labels, valA, valB, metric, stroke, event, lblA, lblB) {
+  const ctx = document.getElementById(canvasId)?.getContext("2d");
+  if (!ctx) return;
+  const range = getYRange(event || "", stroke || "", metric);
+  const cA = "#2980b9", cB = "#e74c3c";
+  const chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: lblA, data: valA, borderColor: cA, backgroundColor: cA+"33", borderWidth: 2, pointRadius: 4, pointBackgroundColor: cA, fill: false, spanGaps: true, tension: 0.3 },
+        { label: lblB, data: valB, borderColor: cB, backgroundColor: cB+"33", borderWidth: 2, pointRadius: 4, pointBackgroundColor: cB, fill: false, spanGaps: true, tension: 0.3 },
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: range[0]??undefined, max: range[1]??undefined, ticks: { font: { size: 11 } } },
+        x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+      },
+      plugins: { legend: { display: true, position: "top", labels: { font: { size: 11 }, boxWidth: 12 } } }
+    }
+  });
+  _charts.push(chart);
 }
 
 function renderDetail(data, meta) {
@@ -520,8 +792,11 @@ function showError(msg) {
 // ── エントリーポイント ──
 async function main() {
   const token = location.pathname.match(/\/r\/([0-9a-f-]{36})/i)?.[1];
+  const urlP  = new URLSearchParams(location.search);
+  const cmpA  = location.pathname === "/compare" ? urlP.get("a") : null;
+  const cmpB  = location.pathname === "/compare" ? urlP.get("b") : null;
+
   if (token) {
-    // 直接詳細URLでアクセスされた場合
     try {
       const url = `${SUPABASE_URL}/rest/v1/race_sessions?share_token=eq.${token}&select=*`;
       const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
@@ -532,6 +807,19 @@ async function main() {
       show("page-detail");
       renderDetail(rows[0].data, rows[0]);
     } catch(e) { showError(e.message); }
+  } else if (cmpA && cmpB) {
+    // 比較URL直アクセス: 全セッション読み込み後に比較表示
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/race_sessions?select=*&order=created_at.desc`;
+      const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+      allSessions = await res.json();
+      const sA = allSessions.find(r => r.share_token === cmpA);
+      const sB = allSessions.find(r => r.share_token === cmpB);
+      if (!sA || !sB) { showError("データが見つかりません"); return; }
+      hide("loading");
+      renderCompare(sA, sB);
+      show("page-compare");
+    } catch(e) { showError(e.message); }
   } else {
     await loadDashboard();
   }
@@ -539,8 +827,12 @@ async function main() {
 
 window.addEventListener("popstate", e => {
   const token = location.pathname.match(/\/r\/([0-9a-f-]{36})/i)?.[1];
+  const p = new URLSearchParams(location.search);
+  const cmpA = location.pathname === "/compare" ? p.get("a") : null;
+  const cmpB = location.pathname === "/compare" ? p.get("b") : null;
   if (token) { showDetail(token); }
-  else { hide("page-detail"); show("page-dashboard"); }
+  else if (cmpA && cmpB) { showCompare(cmpA, cmpB); }
+  else { hide("page-detail"); hide("page-compare"); show("page-dashboard"); }
 });
 
 main();
