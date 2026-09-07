@@ -602,8 +602,13 @@ function renderDetail(data, meta) {
       <div class="section-title">通過タイム</div>
       <table>
         <tr><th>ポイント</th><th>通過時刻</th></tr>
-        ${Object.entries(timing).filter(([k]) => k !== "シグナル").map(([k,v]) =>
-          `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`).join("")}
+        ${Object.entries(timing)
+          .filter(([k]) => k !== "シグナル" && timing[k] != null)
+          .sort((a, b) => (parseInt(a[0]) || 0) - (parseInt(b[0]) || 0))
+          .map(([k, v]) => {
+            const sig = timing["シグナル"] ?? 0;
+            return `<tr><td class="label-cell">${k}</td><td>${fmtTime(v - sig)}</td></tr>`;
+          }).join("")}
       </table>
     </div>
 
