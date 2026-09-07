@@ -163,6 +163,17 @@ function calcStrokes(sections, timing) {
   });
 }
 
+// 泳法コード → 日本語
+const STROKE_LABELS = { Fr: "自由形", Ba: "背泳ぎ", Br: "平泳ぎ", Fly: "バタフライ", IM: "個人メドレー" };
+
+function getEventLabel(s) {
+  const event  = s.event || "";
+  const stroke = s.data?.athlete?.stroke || "";
+  // IM系はeventに既に含まれている or strokeがIMなら不要
+  if (!stroke || event.includes("IM") || stroke === "IM") return event;
+  return `${event} ${STROKE_LABELS[stroke] || stroke}`;
+}
+
 // ── ダッシュボード ──
 async function loadDashboard() {
   try {
@@ -173,7 +184,7 @@ async function loadDashboard() {
 
     // プルダウン生成
     const names  = [...new Set(allSessions.map(s => s.athlete_name).filter(Boolean))].sort();
-    const events = [...new Set(allSessions.map(s => s.event).filter(Boolean))].sort();
+    const events = [...new Set(allSessions.map(s => getEventLabel(s)).filter(Boolean))].sort();
     const nSel = document.getElementById("filter-name");
     const eSel = document.getElementById("filter-event");
     names.forEach(n  => { const o = document.createElement("option"); o.value = n; o.textContent = n; nSel.appendChild(o); });
@@ -192,7 +203,7 @@ function applyFilter() {
   const event = document.getElementById("filter-event").value;
   const filtered = allSessions.filter(s =>
     (!name  || s.athlete_name === name) &&
-    (!event || s.event === event)
+    (!event || getEventLabel(s) === event)
   );
   renderList(filtered);
 }
@@ -206,7 +217,7 @@ function renderList(sessions) {
       <div>
         <span class="time">${fmtTime(t)}</span>
         <span class="name">${s.athlete_name || "-"}</span>
-        <span class="event-badge">${s.event || "-"}</span>
+        <span class="event-badge">${getEventLabel(s) || "-"}</span>
       </div>
       <div class="meta">🏆 ${s.competition || "-"}　📅 ${s.date || "-"}</div>
     </div>`;
