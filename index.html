@@ -400,8 +400,8 @@ function renderCompare(sA, sB) {
   const splitsA  = calcSplits(tA),        splitsB  = calcSplits(tB);
   const raceA    = calcRaceTime(tA),      raceB    = calcRaceTime(tB);
 
-  const lblA = `${sA.athlete_name || "A"} ${getEventLabel(sA)}`;
-  const lblB = `${sB.athlete_name || "B"} ${getEventLabel(sB)}`;
+  const lblA = `${sA.competition || sA.athlete_name || "A"}  ${sA.date || ""}`.trim();
+  const lblB = `${sB.competition || sB.athlete_name || "B"}  ${sB.date || ""}`.trim();
 
   const EPS = 0.005; // 小数2桁表示で同値と見なす閾値
   // 差セル（時間: 低い方が良い。diff=A-B, 負ならAが良い）
@@ -440,6 +440,7 @@ function renderCompare(sA, sB) {
   const head4 = `<tr><th>区間</th><th class="ha">A</th><th class="hb">B</th><th>差(A−B)</th></tr>`;
 
   document.getElementById("compare-content").innerHTML = `
+    <div style="text-align:center;font-size:12px;color:#555;margin-bottom:6px">${sA.athlete_name || ""} ${getEventLabel(sA)}</div>
     <div class="cmp-header-bar">
       <span class="cmp-badge a">A: ${lblA}</span>
       <span class="cmp-badge b">B: ${lblB}</span>
