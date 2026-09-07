@@ -337,7 +337,7 @@ function renderDetail(data, meta) {
 
     <div class="footer">アップロード: ${new Date(meta.created_at).toLocaleDateString("ja-JP")}</div>
   `;
-  if (strokes.some(s => s.ST != null)) renderCharts(strokes, a.stroke || "");
+  if (strokes.some(s => s.ST != null)) renderCharts(strokes, a.stroke || "", a.event || "");
 }
 
 // ── グラフ描画 ──
@@ -348,23 +348,40 @@ function destroyCharts() {
   _charts = [];
 }
 
-// 泳法別Yレンジ（config.pyのGRAPH_Y_RANGESに対応）
+// config.py の GRAPH_Y_RANGES と完全同期
+// 優先順: {event}_{stroke} → {event} → {stroke} → ""
 const Y_RANGES = {
-  Fr:  { SV: [1.00, 2.10], ST: [0.80, 1.60], SL: [1.60, 2.40] },
-  Ba:  { SV: [1.40, 1.90], ST: [0.80, 1.30], SL: [1.10, 1.90] },
-  Br:  { SV: [1.10, 1.80], ST: [1.00, 1.60], SL: [1.40, 2.20] },
-  Fly: { SV: [1.40, 2.00], ST: [0.75, 1.20], SL: [1.10, 1.90] },
-  IM:  { SV: [1.20, 2.10], ST: [0.75, 1.70], SL: [1.10, 2.30] },
-  "":  { SV: [1.30, 1.60], ST: [0.80, 1.20], SL: [1.20, 1.70] },
+  "":         { SV: [1.30, 1.60], ST: [0.80, 1.20], SL: [1.20, 1.70] },
+  "Fly":      { SV: [1.40, 2.00], ST: [0.75, 1.20], SL: [1.10, 1.90] },
+  "Ba":       { SV: [1.40, 1.90], ST: [0.80, 1.30], SL: [1.10, 1.90] },
+  "Br":       { SV: [1.10, 1.80], ST: [1.00, 1.60], SL: [1.40, 2.20] },
+  "Fr":       { SV: [1.00, 2.10], ST: [0.80, 1.60], SL: [1.60, 2.40] },
+  "IM":       { SV: [1.20, 2.10], ST: [0.75, 1.70], SL: [1.10, 2.30] },
+  "100m_Ba":  { SV: [1.20, 1.90], ST: [0.70, 1.90], SL: [1.50, 2.40] },
+  "200m_Ba":  { SV: [1.00, 1.90], ST: [0.70, 1.90], SL: [1.50, 2.40] },
+  "200m_Fly": { SV: [1.00, 1.90], ST: [0.80, 1.40], SL: [1.10, 1.90] },
+  "200m_Br":  { SV: [0.90, 1.60], ST: [1.20, 1.90], SL: [1.50, 2.40] },
+  "200m_Fr":  { SV: [1.00, 2.10], ST: [0.80, 1.60], SL: [1.60, 2.40] },
+  "200mIM":   { SV: [0.90, 1.90], ST: [0.90, 2.00], SL: [1.30, 2.40] },
+  "400mIM":   { SV: [0.90, 1.80], ST: [1.00, 1.90], SL: [1.40, 2.50] },
+  "50m_Fr":   { SV: [1.00, 2.10], ST: [0.80, 1.60], SL: [1.50, 2.40] },
 };
+
+function getYRange(event, stroke, metric) {
+  // _graph_y_range と同じ優先順で探す
+  for (const key of [`${event}_${stroke}`, event, stroke, ""]) {
+    if (Y_RANGES[key]?.[metric]) return Y_RANGES[key][metric];
+  }
+  return [null, null];
+}
 
 // IM区間ごとの背景色
 const IM_BAND_COLORS = ["rgba(234,240,251,0.5)", "rgba(253,242,227,0.5)",
                         "rgba(234,250,241,0.5)", "rgba(245,234,251,0.5)"];
 
-function makeChart(canvasId, labels, values, metric, stroke, bandGroups) {
+function makeChart(canvasId, labels, values, metric, stroke, bandGroups, event) {
   const ctx = document.getElementById(canvasId).getContext("2d");
-  const range = (Y_RANGES[stroke] || Y_RANGES[""])[metric] || [null, null];
+  const range = getYRange(event || "", stroke || "", metric);
   const color = metric === "SV" ? "#2980b9" : metric === "ST" ? "#e67e22" : "#27ae60";
 
   // 背景バンドプラグイン
@@ -401,7 +418,7 @@ function makeChart(canvasId, labels, values, metric, stroke, bandGroups) {
         pointRadius: 4,
         pointBackgroundColor: color,
         tension: 0.3,
-        spanGaps: false,
+        spanGaps: true,
       }]
     },
     options: {
@@ -423,7 +440,7 @@ function makeChart(canvasId, labels, values, metric, stroke, bandGroups) {
   _charts.push(chart);
 }
 
-function renderCharts(strokes, stroke) {
+function renderCharts(strokes, stroke, event) {
   const labels = strokes.map(s => s.label);
   const svVals = strokes.map(s => s.SV);
   const stVals = strokes.map(s => s.ST);
@@ -443,9 +460,9 @@ function renderCharts(strokes, stroke) {
   }
 
   setTimeout(() => {
-    makeChart("chart-sv", labels, svVals, "SV", stroke, bandGroups);
-    makeChart("chart-st", labels, stVals, "ST", stroke, bandGroups);
-    makeChart("chart-sl", labels, slVals, "SL", stroke, bandGroups);
+    makeChart("chart-sv", labels, svVals, "SV", stroke, bandGroups, event);
+    makeChart("chart-st", labels, stVals, "ST", stroke, bandGroups, event);
+    makeChart("chart-sl", labels, slVals, "SL", stroke, bandGroups, event);
   }, 50);
 }
 
