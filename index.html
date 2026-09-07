@@ -132,6 +132,26 @@ function calcRaceTime(timing) {
   return (last != null && sig != null) ? last - sig : null;
 }
 
+function calcSplits(timing) {
+  // 全タイミングポイントを距離順に並べて区間タイムを計算
+  const entries = Object.entries(timing)
+    .map(([k, v]) => {
+      const dist = k === "シグナル" ? 0 : (parseInt(k) || null);
+      return { key: k, dist, val: v };
+    })
+    .filter(e => e.dist != null && e.val != null)
+    .sort((a, b) => a.dist - b.dist);
+
+  const splits = [];
+  for (let i = 1; i < entries.length; i++) {
+    const from = entries[i - 1], to = entries[i];
+    if (from.val != null && to.val != null) {
+      splits.push({ label: `${from.key}→${to.key}`, time: to.val - from.val });
+    }
+  }
+  return splits;
+}
+
 function calcLap50m(timing) {
   const laps = {};
   const pts50 = Object.entries(timing)
@@ -254,6 +274,7 @@ function renderDetail(data, meta) {
   const sc       = data.stroke_counts   || {};
   const raceTime = calcRaceTime(timing);
   const laps     = calcLap50m(timing);
+  const splits   = calcSplits(timing);
   const strokes  = calcStrokes(sections, timing);
 
   const pts50 = Object.keys(timing).filter(k => /^\d+m$/.test(k) && parseInt(k) % 50 === 0)
@@ -292,6 +313,15 @@ function renderDetail(data, meta) {
       <table>
         <tr><th>区間</th><th>タイム</th></tr>
         ${Object.entries(laps).map(([k,v]) => `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`).join("")}
+      </table>
+    </div>` : ""}
+
+    ${splits.length > Object.keys(laps).length ? `
+    <div class="section">
+      <div class="section-title">区間タイム</div>
+      <table>
+        <tr><th>区間</th><th>タイム (s)</th></tr>
+        ${splits.map(s => `<tr><td class="label-cell">${s.label}</td><td>${s.time.toFixed(2)}</td></tr>`).join("")}
       </table>
     </div>` : ""}
 
