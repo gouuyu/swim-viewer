@@ -463,13 +463,13 @@ function renderCompare(sA, sB) {
     ).join("")) : ""}
 
     ${allStrokeKeys.length ? `
-      ${cmpTable("SV (m/s)", head4 + allStrokeKeys.map(k =>
+      ${cmpTable("泳速度 (m/s)", head4 + allStrokeKeys.map(k =>
         `<tr><td class="label-cell">${k}</td><td>${fmtVal(strokeMapA[k]?.SV)}</td><td>${fmtVal(strokeMapB[k]?.SV)}</td>${tdVal(strokeMapA[k]?.SV??null,strokeMapB[k]?.SV??null,true)}</tr>`
       ).join(""))}
-      ${cmpTable("ST (s)", head4 + allStrokeKeys.map(k =>
+      ${cmpTable("ストロークタイム (s)", head4 + allStrokeKeys.map(k =>
         `<tr><td class="label-cell">${k}</td><td>${fmtVal(strokeMapA[k]?.ST)}</td><td>${fmtVal(strokeMapB[k]?.ST)}</td>${tdVal(strokeMapA[k]?.ST??null,strokeMapB[k]?.ST??null,false)}</tr>`
       ).join(""))}
-      ${cmpTable("SL (m)", head4 + allStrokeKeys.map(k =>
+      ${cmpTable("ストローク長 (m)", head4 + allStrokeKeys.map(k =>
         `<tr><td class="label-cell">${k}</td><td>${fmtVal(strokeMapA[k]?.SL)}</td><td>${fmtVal(strokeMapB[k]?.SL)}</td>${tdVal(strokeMapA[k]?.SL??null,strokeMapB[k]?.SL??null,true)}</tr>`
       ).join(""))}
     ` : ""}
@@ -488,15 +488,15 @@ function renderCompare(sA, sB) {
     <div class="section">
       <div class="section-title">グラフ比較</div>
       <div style="margin-bottom:14px">
-        <div class="chart-title" style="color:#2980b9">SV (m/s)</div>
+        <div class="chart-title" style="color:#2980b9">泳速度 (m/s)</div>
         <canvas id="cmp-sv" height="200"></canvas>
       </div>
       <div style="margin-bottom:14px">
-        <div class="chart-title" style="color:#e67e22">ST (s)</div>
+        <div class="chart-title" style="color:#e67e22">ストロークタイム (s)</div>
         <canvas id="cmp-st" height="200"></canvas>
       </div>
       <div>
-        <div class="chart-title" style="color:#27ae60">SL (m)</div>
+        <div class="chart-title" style="color:#27ae60">ストローク長 (m)</div>
         <canvas id="cmp-sl" height="200"></canvas>
       </div>
     </div>` : ""}
@@ -616,7 +616,7 @@ function renderDetail(data, meta) {
     <div class="section">
       <div class="section-title">ストローク分析</div>
       <table>
-        <tr><th>区間</th><th>SV (m/s)</th><th>ST (s)</th><th>SL (m)</th></tr>
+        <tr><th>区間</th><th>泳速度 (m/s)</th><th>ストロークタイム (s)</th><th>ストローク長 (m)</th></tr>
         ${strokes.map(s => `<tr>
           <td class="label-cell">${s.label}</td>
           <td>${fmtVal(s.SV)}</td><td>${fmtVal(s.ST)}</td><td>${fmtVal(s.SL)}</td>
@@ -638,9 +638,9 @@ function renderDetail(data, meta) {
     <div class="section">
       <div class="section-title">グラフ (SV・ST・SL)</div>
       <div class="chart-grid">
-        <div><div class="chart-title">SV (m/s)</div><div class="chart-wrap"><canvas id="chart-sv"></canvas></div></div>
-        <div><div class="chart-title">ST (s/str)</div><div class="chart-wrap"><canvas id="chart-st"></canvas></div></div>
-        <div><div class="chart-title">SL (m/str)</div><div class="chart-wrap"><canvas id="chart-sl"></canvas></div></div>
+        <div><div class="chart-title">泳速度 (m/s)</div><div class="chart-wrap"><canvas id="chart-sv"></canvas></div></div>
+        <div><div class="chart-title">ストロークタイム (s)</div><div class="chart-wrap"><canvas id="chart-st"></canvas></div></div>
+        <div><div class="chart-title">ストローク長 (m)</div><div class="chart-wrap"><canvas id="chart-sl"></canvas></div></div>
       </div>
     </div>` : ""}
 
