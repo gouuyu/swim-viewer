@@ -318,12 +318,12 @@ function applyFilter() {
   } else if (sort === "event") {
     const STROKE_ORDER = { Fr: 0, Ba: 1, Br: 2, Fly: 3, IM: 4 };
     filtered = filtered.slice().sort((a, b) => {
-      const distA = parseInt(a.event) || 0;
-      const distB = parseInt(b.event) || 0;
-      if (distA !== distB) return distA - distB;
       const sA = STROKE_ORDER[a.data?.athlete?.stroke] ?? 99;
       const sB = STROKE_ORDER[b.data?.athlete?.stroke] ?? 99;
-      return sA - sB;
+      if (sA !== sB) return sA - sB;
+      const distA = parseInt(a.event) || 0;
+      const distB = parseInt(b.event) || 0;
+      return distA - distB;
     });
   }
   // "upload" keeps the default order (created_at desc from server)
