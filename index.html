@@ -577,6 +577,7 @@ function renderDetail(data, meta) {
   const sections = data.stroke_sections || [];
   const sc       = data.stroke_counts   || {};
   const raceTime = calcRaceTime(timing);
+  const reactionTime = data.reaction_time ?? null;
   const laps     = calcLap50m(timing);
   const splits   = calcSplits(timing);
   const strokes  = calcStrokes(sections, timing);
@@ -603,6 +604,7 @@ function renderDetail(data, meta) {
       <div class="race-time">
         <div class="time">${fmtTime(raceTime)}</div>
         <div class="label">レースタイム</div>
+        ${reactionTime != null ? `<div style="font-size:11px;color:#888;margin-top:4px">RT ${reactionTime.toFixed(2)}s</div>` : ""}
       </div>
       ${firstHalf != null || secondHalf != null ? `
       <div class="card-grid">
