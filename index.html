@@ -260,7 +260,7 @@ function getEventLabel(s) {
   const event  = s.event || "";
   const stroke = s.data?.athlete?.stroke || "";
   // IM系はeventに既に含まれている or strokeがIMなら不要
-  if (!stroke || event.includes("IM") || stroke === "IM") return event.replace(/(\d+m)(IM)/, "$1 $2");
+  if (!stroke || event.includes("IM") || stroke === "IM") return event.replace(/(\d+m)(IM)/, "$1 個人メドレー");
   return `${event} ${STROKE_LABELS[stroke] || stroke}`;
 }
 
