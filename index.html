@@ -126,6 +126,11 @@ tr:last-child td { border-bottom: none; }
     <div class="filter-row">
       <select id="filter-name"><option value="">すべての選手</option></select>
       <select id="filter-event"><option value="">すべての種目</option></select>
+      <select id="sort-order" onchange="applyFilter()">
+        <option value="upload">アップロード順（新しい順）</option>
+        <option value="date">日付順</option>
+        <option value="name">選手名順</option>
+      </select>
       <button onclick="applyFilter()">検索</button>
     </div>
   </div>
@@ -292,10 +297,25 @@ async function loadDashboard() {
 function applyFilter() {
   const name  = document.getElementById("filter-name").value;
   const event = document.getElementById("filter-event").value;
-  const filtered = allSessions.filter(s =>
+  const sort  = document.getElementById("sort-order")?.value || "upload";
+  let filtered = allSessions.filter(s =>
     (!name  || s.athlete_name === name) &&
     (!event || getEventLabel(s) === event)
   );
+  if (sort === "date") {
+    filtered = filtered.slice().sort((a, b) => {
+      const da = a.date || "";
+      const db = b.date || "";
+      return db < da ? -1 : db > da ? 1 : 0;
+    });
+  } else if (sort === "name") {
+    filtered = filtered.slice().sort((a, b) => {
+      const na = a.athlete_name || "";
+      const nb = b.athlete_name || "";
+      return na.localeCompare(nb, "ja");
+    });
+  }
+  // "upload" keeps the default order (created_at desc from server)
   renderList(filtered);
 }
 
