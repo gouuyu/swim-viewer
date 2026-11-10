@@ -244,12 +244,13 @@ function calcLap50m(timing) {
   return laps;
 }
 
-function calcStrokes(sections, timing) {
+function calcStrokes(sections, timing, event) {
+  const nStr = (event || "").includes("_SC") ? 2 : 3;
   return sections.map(sec => {
     if (sec.start_time == null || sec.end_time == null)
       return { label: sec.label, start_distance: sec.start_distance ?? null, SV: null, ST: null, SL: null };
     const dur = sec.end_time - sec.start_time;
-    const ST  = dur / 3;
+    const ST  = dur / nStr;
     const tEntries = Object.entries(timing)
       .filter(([k]) => /^\d+m$/.test(k))
       .map(([k, v]) => [parseInt(k), v])
@@ -460,7 +461,7 @@ function renderCompare(sA, sB) {
   const secA = dA.stroke_sections || [], secB = dB.stroke_sections || [];
   const scA  = dA.stroke_counts   || {}, scB  = dB.stroke_counts   || {};
 
-  const strokesA = calcStrokes(secA, tA), strokesB = calcStrokes(secB, tB);
+  const strokesA = calcStrokes(secA, tA, aA.event), strokesB = calcStrokes(secB, tB, aB.event);
   const lapsA    = calcLap50m(tA),        lapsB    = calcLap50m(tB);
   const splitsA  = calcSplits(tA),        splitsB  = calcSplits(tB);
   const raceA    = calcRaceTime(tA),      raceB    = calcRaceTime(tB);
@@ -614,7 +615,7 @@ function renderDetail(data, meta) {
   const reactionTime = data.reaction_time ?? null;
   const laps     = calcLap50m(timing);
   const splits   = calcSplits(timing);
-  const strokes  = calcStrokes(sections, timing);
+  const strokes  = calcStrokes(sections, timing, a.event);
 
   const pts50 = Object.keys(timing).filter(k => /^\d+m$/.test(k) && parseInt(k) % 50 === 0)
                        .sort((a,b) => parseInt(a) - parseInt(b));
