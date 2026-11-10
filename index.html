@@ -244,6 +244,19 @@ function calcLap50m(timing) {
   return laps;
 }
 
+function calcLap25m(timing) {
+  const laps = {};
+  const pts = Object.entries(timing)
+    .filter(([k]) => /^\d+m$/.test(k) && parseInt(k) % 25 === 0)
+    .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+  let prev = { key: "シグナル", val: timing["シグナル"] ?? 0 };
+  for (const [key, val] of pts) {
+    if (val != null && prev.val != null) laps[`${prev.key}→${key}`] = val - prev.val;
+    prev = { key, val };
+  }
+  return laps;
+}
+
 function calcStrokes(sections, timing, event) {
   const nStr = (event || "").includes("_SC") ? 2 : 3;
   return sections.map(sec => {
@@ -463,7 +476,10 @@ function renderCompare(sA, sB) {
   const scA  = dA.stroke_counts   || {}, scB  = dB.stroke_counts   || {};
 
   const strokesA = calcStrokes(secA, tA, aA.event), strokesB = calcStrokes(secB, tB, aB.event);
-  const lapsA    = calcLap50m(tA),        lapsB    = calcLap50m(tB);
+  const isSC_cmp  = ((aA.event || "") + (aB.event || "")).includes("_SC");
+  const lapFn_cmp = isSC_cmp ? calcLap25m : calcLap50m;
+  const lapTitle_cmp = isSC_cmp ? "25mラップ" : "50mラップ";
+  const lapsA    = lapFn_cmp(tA),        lapsB    = lapFn_cmp(tB);
   const splitsA  = calcSplits(tA),        splitsB  = calcSplits(tB);
   const raceA    = calcRaceTime(tA),      raceB    = calcRaceTime(tB);
 
@@ -518,7 +534,7 @@ function renderCompare(sA, sB) {
       <tr><td class="label-cell">合計</td><td>${fmtTime(raceA)}</td><td>${fmtTime(raceB)}</td>${tdTime(raceA, raceB)}</tr>
     `)}
 
-    ${allLapKeys.length ? cmpTable("50mラップ", head4 + allLapKeys.map(k =>
+    ${allLapKeys.length ? cmpTable(lapTitle_cmp, head4 + allLapKeys.map(k =>
       `<tr><td class="label-cell">${k}</td><td>${fmtTime(lapsA[k]??null)}</td><td>${fmtTime(lapsB[k]??null)}</td>${tdTime(lapsA[k]??null,lapsB[k]??null)}</tr>`
     ).join("")) : ""}
 
@@ -662,7 +678,9 @@ function renderDetail(data, meta) {
   const sc       = data.stroke_counts   || {};
   const raceTime = calcRaceTime(timing);
   const reactionTime = data.reaction_time ?? null;
-  const laps     = calcLap50m(timing);
+  const isSC     = (a.event || "").includes("_SC");
+  const laps     = isSC ? calcLap25m(timing) : calcLap50m(timing);
+  const lapTitle = isSC ? "25mラップ" : "50mラップ";
   const splits   = calcSplits(timing);
   const strokes  = calcStrokes(sections, timing, a.event);
 
@@ -699,7 +717,7 @@ function renderDetail(data, meta) {
 
     ${Object.keys(laps).length ? `
     <div class="section">
-      <div class="section-title">50mラップ</div>
+      <div class="section-title">${lapTitle}</div>
       <table>
         <tr><th>区間</th><th>タイム</th></tr>
         ${Object.entries(laps).map(([k,v]) => `<tr><td class="label-cell">${k}</td><td>${fmtTime(v)}</td></tr>`).join("")}
@@ -794,6 +812,7 @@ const Y_RANGES = {
   "50m_Br":   { SV: [1.20, 1.90], ST: [0.60, 1.20], SL: [1.20, 2.00] },
   // ── 短水路（SC）── config.py の GRAPH_Y_RANGES と同期
   "50m_SC":    { SV: [1.20, 2.10], ST: [0.60, 1.60], SL: [1.10, 2.40] },
+  "100m_SC_Fr": { SV: [1.40, 2.20], ST: [0.70, 1.50], SL: [1.80, 2.60] },
   "100m_SC":   { SV: [1.20, 1.90], ST: [0.70, 1.90], SL: [1.10, 2.40] },
   "200m_SC":   { SV: [1.00, 1.90], ST: [0.70, 1.90], SL: [1.10, 2.40] },
   "400m_SC":   { SV: [0.90, 1.80], ST: [0.90, 1.90], SL: [1.20, 2.40] },
