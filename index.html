@@ -430,7 +430,8 @@ function onCmpEvent(ab) {
   );
   _buildOpts(sSel, filtered.map(s => {
     const t = s.data?.timing ? calcRaceTime(s.data.timing) : null;
-    return { val: s.share_token, lbl: `${s.competition || "-"}  ${s.date || "-"}  ${fmtTime(t)}` };
+    const round = s.data?.athlete?.round_name || "";
+    return { val: s.share_token, lbl: `${s.competition || "-"}  ${s.date || "-"}  ${round ? "[" + round + "] " : ""}${fmtTime(t)}` };
   }));
 }
 
