@@ -30,6 +30,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Goth
 .section-title { font-size: 12px; font-weight: 700; color: #1A5276;
                  border-bottom: 2px solid #1A5276; padding-bottom: 6px; margin-bottom: 10px; }
 
+/* ── ダッシュボード：選手ピッカー ── */
+.athlete-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.athlete-btn { padding: 8px 18px; border: 2px solid #1A5276; border-radius: 20px;
+               font-size: 13px; font-weight: 600; cursor: pointer;
+               background: white; color: #1A5276; transition: all 0.15s; }
+.athlete-btn:hover { background: #eaf0fb; }
+.athlete-btn.active { background: #1A5276; color: white; }
+
 /* ── ダッシュボード：フィルター ── */
 .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-row select { flex: 1; min-width: 120px; padding: 8px 10px;
@@ -123,9 +131,14 @@ tr:last-child td { border-bottom: none; }
     <div class="sub">チームレース分析データベース</div>
   </div>
   <div class="section">
-    <div class="section-title">検索・絞り込み</div>
+    <div class="section-title">選手を選択</div>
+    <div id="athlete-picker" class="athlete-picker">
+      <button class="athlete-btn active" onclick="selectAthlete('')">すべて</button>
+    </div>
+  </div>
+  <div class="section">
     <div class="filter-row">
-      <select id="filter-name"><option value="">すべての選手</option></select>
+      <select id="filter-name" style="display:none"><option value="">すべての選手</option></select>
       <select id="filter-event"><option value="">すべての種目</option></select>
       <select id="sort-order" onchange="applyFilter()">
         <option value="upload">アップロード順（新しい順）</option>
@@ -133,7 +146,6 @@ tr:last-child td { border-bottom: none; }
         <option value="name">選手名順</option>
         <option value="event">種目順</option>
       </select>
-      <button onclick="applyFilter()">検索</button>
     </div>
   </div>
   <div class="section">
@@ -181,6 +193,7 @@ const SUPABASE_URL = "https://gxvrqmpdarvqcxeyvigk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4dnJxbXBkYXJ2cWN4ZXl2aWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwODc0NTYsImV4cCI6MjEwMTY2MzQ1Nn0.oh3V062aHMySVN4cFOivu8oal3yeGa7SgXIkTvi3grg";
 
 let allSessions = [];
+let selectedAthlete = "";
 
 function fmtTime(s) {
   if (s == null) return "-";
@@ -282,6 +295,16 @@ async function loadDashboard() {
     names.forEach(n  => { const o = document.createElement("option"); o.value = n; o.textContent = n; nSel.appendChild(o); });
     events.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; eSel.appendChild(o); });
 
+    // 選手ピッカーボタン生成
+    const picker = document.getElementById("athlete-picker");
+    names.forEach(n => {
+      const btn = document.createElement("button");
+      btn.className = "athlete-btn";
+      btn.textContent = n;
+      btn.onclick = () => selectAthlete(n);
+      picker.appendChild(btn);
+    });
+
     // 比較モード用の選手プルダウンも同時に生成
     ["cmp-na", "cmp-nb"].forEach(id => {
       const s = document.getElementById(id);
@@ -296,8 +319,18 @@ async function loadDashboard() {
   }
 }
 
+function selectAthlete(name) {
+  selectedAthlete = name;
+  document.getElementById("filter-name").value = name;
+  // ボタンのアクティブ状態を更新
+  document.querySelectorAll(".athlete-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.textContent === (name || "すべて"));
+  });
+  applyFilter();
+}
+
 function applyFilter() {
-  const name  = document.getElementById("filter-name").value;
+  const name  = selectedAthlete;
   const event = document.getElementById("filter-event").value;
   const sort  = document.getElementById("sort-order")?.value || "upload";
   let filtered = allSessions.filter(s =>
