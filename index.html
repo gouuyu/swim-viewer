@@ -573,19 +573,66 @@ function renderCompare(sA, sB) {
     const stroke = aA.stroke || aB.stroke || "";
     const event  = aA.event  || aB.event  || "";
     const labels = allStrokeKeys;
+
+    // バンドグループ計算（詳細ページと同じロジック）
+    let cmpBandGroups = null;
+    if (stroke === "IM") {
+      if (labels.length >= 12) cmpBandGroups = [3,3,3,3];
+      else if (labels.length === 4) cmpBandGroups = [1,1,1,1];
+    } else {
+      const lapSize = (event || "").includes("_SC") ? 25 : 50;
+      const lapNos = labels.map(l => {
+        const m = l.match(/^(\d+)/);
+        return m ? Math.floor(parseInt(m[1]) / lapSize) : 0;
+      });
+      if (new Set(lapNos).size > 1) {
+        const groups = []; let cnt = 1;
+        for (let i = 1; i < lapNos.length; i++) {
+          if (lapNos[i] === lapNos[i-1]) { cnt++; }
+          else { groups.push(cnt); cnt = 1; }
+        }
+        groups.push(cnt);
+        cmpBandGroups = groups;
+      } else if (lapNos.length > 0) {
+        cmpBandGroups = [lapNos.length];
+      }
+    }
+
     setTimeout(() => {
-      makeCmpChart("cmp-sv", labels, labels.map(l => strokeMapA[l]?.SV??null), labels.map(l => strokeMapB[l]?.SV??null), "SV", stroke, event, lblA, lblB);
-      makeCmpChart("cmp-st", labels, labels.map(l => strokeMapA[l]?.ST??null), labels.map(l => strokeMapB[l]?.ST??null), "ST", stroke, event, lblA, lblB);
-      makeCmpChart("cmp-sl", labels, labels.map(l => strokeMapA[l]?.SL??null), labels.map(l => strokeMapB[l]?.SL??null), "SL", stroke, event, lblA, lblB);
+      makeCmpChart("cmp-sv", labels, labels.map(l => strokeMapA[l]?.SV??null), labels.map(l => strokeMapB[l]?.SV??null), "SV", stroke, event, lblA, lblB, cmpBandGroups);
+      makeCmpChart("cmp-st", labels, labels.map(l => strokeMapA[l]?.ST??null), labels.map(l => strokeMapB[l]?.ST??null), "ST", stroke, event, lblA, lblB, cmpBandGroups);
+      makeCmpChart("cmp-sl", labels, labels.map(l => strokeMapA[l]?.SL??null), labels.map(l => strokeMapB[l]?.SL??null), "SL", stroke, event, lblA, lblB, cmpBandGroups);
     }, 50);
   }
 }
 
-function makeCmpChart(canvasId, labels, valA, valB, metric, stroke, event, lblA, lblB) {
+function makeCmpChart(canvasId, labels, valA, valB, metric, stroke, event, lblA, lblB, bandGroups) {
   const ctx = document.getElementById(canvasId)?.getContext("2d");
   if (!ctx) return;
   const range = getYRange(event || "", stroke || "", metric);
   const cA = "#2980b9", cB = "#e74c3c";
+
+  const bandPlugin = {
+    id: "cmpBandPlugin",
+    beforeDraw(chart) {
+      if (!bandGroups || !bandGroups.length) return;
+      const { ctx, chartArea, scales } = chart;
+      const xScale = scales.x;
+      let gi = 0, count = 0;
+      ctx.save();
+      for (const n of bandGroups) {
+        const x0 = xScale.getPixelForValue(count - 0.5);
+        const x1 = xScale.getPixelForValue(count + n - 0.5);
+        ctx.fillStyle = IM_BAND_COLORS[gi % IM_BAND_COLORS.length];
+        ctx.fillRect(Math.max(x0, chartArea.left), chartArea.top,
+                     Math.min(x1, chartArea.right) - Math.max(x0, chartArea.left),
+                     chartArea.bottom - chartArea.top);
+        gi++; count += n;
+      }
+      ctx.restore();
+    }
+  };
+
   const chart = new Chart(ctx, {
     type: "line",
     data: {
@@ -602,7 +649,8 @@ function makeCmpChart(canvasId, labels, valA, valB, metric, stroke, event, lblA,
         x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
       },
       plugins: { legend: { display: true, position: "top", labels: { font: { size: 11 }, boxWidth: 12 } } }
-    }
+    },
+    plugins: [bandPlugin]
   });
   _charts.push(chart);
 }
@@ -744,6 +792,13 @@ const Y_RANGES = {
   "400mIM":   { SV: [0.90, 1.80], ST: [1.00, 1.90], SL: [1.40, 2.50] },
   "50m_Fr":   { SV: [1.00, 2.10], ST: [0.80, 1.60], SL: [1.50, 2.40] },
   "50m_Br":   { SV: [1.20, 1.90], ST: [0.60, 1.20], SL: [1.20, 2.00] },
+  // ── 短水路（SC）── config.py の GRAPH_Y_RANGES と同期
+  "50m_SC":    { SV: [1.20, 2.10], ST: [0.60, 1.60], SL: [1.10, 2.40] },
+  "100m_SC":   { SV: [1.20, 1.90], ST: [0.70, 1.90], SL: [1.10, 2.40] },
+  "200m_SC":   { SV: [1.00, 1.90], ST: [0.70, 1.90], SL: [1.10, 2.40] },
+  "400m_SC":   { SV: [0.90, 1.80], ST: [0.90, 1.90], SL: [1.20, 2.40] },
+  "200mIM_SC": { SV: [0.90, 1.90], ST: [0.75, 2.00], SL: [1.10, 2.40] },
+  "400mIM_SC": { SV: [0.90, 1.80], ST: [0.90, 2.00], SL: [1.10, 2.40] },
 };
 
 function getYRange(event, stroke, metric) {
@@ -832,9 +887,12 @@ function renderCharts(strokes, stroke, event) {
     if (strokes.length >= 12) bandGroups = [3, 3, 3, 3];
     else if (strokes.length === 4) bandGroups = [1, 1, 1, 1];
   } else {
-    // 非IM: 50mラップごとに色分け（PDFのLAP_BG_COLORSと同じ）
+    // 非IM: ラップごとに色分け
+    // SC（25mプール）→ 25m単位でラップ番号を計算
+    // LC（50mプール）→ 50m単位
+    const lapSize = (event || "").includes("_SC") ? 25 : 50;
     const lapNos = strokes.map(s =>
-      s.start_distance != null ? Math.floor(s.start_distance / 50) : 0
+      s.start_distance != null ? Math.floor(s.start_distance / lapSize) : 0
     );
     if (new Set(lapNos).size > 1) {
       const groups = [];
@@ -845,6 +903,9 @@ function renderCharts(strokes, stroke, event) {
       }
       groups.push(count);
       bandGroups = groups;
+    } else if (lapNos.length > 0) {
+      // 全セクションが同一ラップの場合でも1バンド表示
+      bandGroups = [lapNos.length];
     }
   }
 
