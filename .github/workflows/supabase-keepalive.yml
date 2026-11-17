@@ -1,0 +1,39 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: '0 10 */5 * *'   # 5日ごと 10:00 UTC
+  workflow_dispatch:           # 手動実行ボタンも有効
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          python3 - <<'EOF'
+          import urllib.request
+          import urllib.error
+
+          SUPABASE_URL = "https://gxvrqmpdarvqcxeyvigk.supabase.co"
+          SUPABASE_KEY = (
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+              ".eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4dnJxbXBkYXJ2cWN4ZXl2aWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwODc0NTYsImV4cCI6MjEwMTY2MzQ1Nn0"
+              ".oh3V062aHMySVN4cFOivu8oal3yeGa7SgXIkTvi3grg"
+          )
+
+          url = f"{SUPABASE_URL}/rest/v1/race_sessions?select=count"
+          req = urllib.request.Request(url, headers={
+              "apikey": SUPABASE_KEY,
+              "Authorization": f"Bearer {SUPABASE_KEY}",
+          })
+          try:
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  print(f"OK — status {resp.status}")
+          except urllib.error.HTTPError as e:
+              print(f"HTTP ERROR {e.code}: {e.reason}")
+              raise
+          except Exception as e:
+              print(f"ERROR: {e}")
+              raise
+          EOF
