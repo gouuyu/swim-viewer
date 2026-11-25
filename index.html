@@ -452,8 +452,29 @@ function onCmpName(ab) {
 }
 
 function onCmpEvent() {
-  onCmpName('a');
-  onCmpName('b');
+  const event = document.getElementById("cmp-event").value;
+  // 種目に合う選手だけに絞り込む（種目未選択なら全員）
+  const validNames = event
+    ? [...new Set(allSessions.filter(s => getEventLabel(s) === event).map(s => s.athlete_name).filter(Boolean))].sort()
+    : [...new Set(allSessions.map(s => s.athlete_name).filter(Boolean))].sort();
+
+  ["a", "b"].forEach(ab => {
+    const nSel = document.getElementById(`cmp-n${ab}`);
+    const prev = nSel.value; // 既に選ばれていた選手
+    nSel.innerHTML = `<option value="">選手を選択</option>`;
+    validNames.forEach(n => {
+      const o = document.createElement("option");
+      o.value = n; o.textContent = n;
+      if (n === prev && validNames.includes(prev)) o.selected = true;
+      nSel.appendChild(o);
+    });
+    // 既選択が絞り込み後に存在しない場合はレース選択もリセット
+    if (prev && !validNames.includes(prev)) {
+      _buildOpts(document.getElementById(`cmp-s${ab}`), []);
+    } else {
+      onCmpName(ab);
+    }
+  });
 }
 
 function startCompare() {
