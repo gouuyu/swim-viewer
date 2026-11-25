@@ -474,6 +474,7 @@ function renderCompare(sA, sB) {
   const tA = dA.timing  || {}, tB = dB.timing  || {};
   const secA = dA.stroke_sections || [], secB = dB.stroke_sections || [];
   const scA  = dA.stroke_counts   || {}, scB  = dB.stroke_counts   || {};
+  const rtA  = dA.reaction_time   ?? null, rtB  = dB.reaction_time  ?? null;
 
   const strokesA = calcStrokes(secA, tA, aA.event), strokesB = calcStrokes(secB, tB, aB.event);
   const isSC_cmp  = ((aA.event || "") + (aB.event || "")).includes("_SC");
@@ -531,6 +532,7 @@ function renderCompare(sA, sB) {
 
     ${cmpTable("レースタイム", `
       <tr><th></th><th class="ha">A</th><th class="hb">B</th><th>差(A−B)</th></tr>
+      ${(rtA != null || rtB != null) ? `<tr><td class="label-cell">RT</td><td>${rtA != null ? rtA.toFixed(2)+"s" : "-"}</td><td>${rtB != null ? rtB.toFixed(2)+"s" : "-"}</td>${tdTime(rtA, rtB)}</tr>` : ""}
       <tr><td class="label-cell">合計</td><td>${fmtTime(raceA)}</td><td>${fmtTime(raceB)}</td>${tdTime(raceA, raceB)}</tr>
     `)}
 
