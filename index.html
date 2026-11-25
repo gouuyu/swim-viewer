@@ -139,7 +139,7 @@ tr:last-child td { border-bottom: none; }
   <div class="section">
     <div class="filter-row">
       <select id="filter-name" style="display:none"><option value="">すべての選手</option></select>
-      <select id="filter-event"><option value="">すべての種目</option></select>
+      <select id="filter-event" onchange="applyFilter()"><option value="">すべての種目</option></select>
       <select id="sort-order" onchange="applyFilter()">
         <option value="upload">アップロード順（新しい順）</option>
         <option value="date">日付順</option>
