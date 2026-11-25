@@ -300,7 +300,7 @@ async function loadDashboard() {
 
     // プルダウン生成
     const names  = [...new Set(allSessions.map(s => s.athlete_name).filter(Boolean))].sort();
-    const events = [...new Set(allSessions.map(s => getEventLabel(s)).filter(Boolean))].sort();
+    const events = sortEventLabels([...new Set(allSessions.map(s => getEventLabel(s)).filter(Boolean))]);
     const nSel = document.getElementById("filter-name");
     const eSel = document.getElementById("filter-event");
     names.forEach(n  => { const o = document.createElement("option"); o.value = n; o.textContent = n; nSel.appendChild(o); });
@@ -323,7 +323,7 @@ async function loadDashboard() {
     });
     // 比較モード共通種目プルダウン
     const cmpESel = document.getElementById("cmp-event");
-    [...new Set(allSessions.map(s => getEventLabel(s)).filter(Boolean))].sort()
+    sortEventLabels([...new Set(allSessions.map(s => getEventLabel(s)).filter(Boolean))])
       .forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; cmpESel.appendChild(o); });
 
     hide("loading");
@@ -421,9 +421,20 @@ function toggleCmpPanel() {
 
 function _buildOpts(sel, items) {
   sel.innerHTML = "";
-  const def = document.createElement("option"); def.value = ""; def.textContent = "選択してください";
+  const def = document.createElement("option"); def.value = ""; def.textContent = "レースを選択";
   sel.appendChild(def);
   items.forEach(x => { const o = document.createElement("option"); o.value = x.val; o.textContent = x.lbl; sel.appendChild(o); });
+}
+
+const _STROKE_ORDER = { "自由形": 0, "背泳ぎ": 1, "平泳ぎ": 2, "バタフライ": 3, "個人メドレー": 4 };
+function sortEventLabels(labels) {
+  const strokeKey = lbl => { for (const [k,v] of Object.entries(_STROKE_ORDER)) if (lbl.includes(k)) return v; return 9; };
+  const dist      = lbl => { const m = lbl.match(/(\d+)m/); return m ? parseInt(m[1]) : 999; };
+  return labels.slice().sort((a, b) => {
+    const sd = strokeKey(a) - strokeKey(b); if (sd) return sd;
+    const dd = dist(a) - dist(b);           if (dd) return dd;
+    return a.includes("_SC") ? 1 : -1; // LC → SC
+  });
 }
 
 function onCmpName(ab) {
