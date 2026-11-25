@@ -151,20 +151,17 @@ tr:last-child td { border-bottom: none; }
   <div class="section">
     <button class="cmp-toggle-btn" onclick="toggleCmpPanel()">⚖️ 比較モード</button>
     <div id="cmp-panel" class="cmp-panel" style="display:none">
+      <div class="cmp-selrow" style="margin-bottom:8px">
+        <select id="cmp-event" onchange="onCmpEvent()" style="width:100%"><option value="">種目を選択</option></select>
+      </div>
       <div class="cmp-group">
         <div class="cmp-group-lbl">▶ セッション A</div>
-        <div class="cmp-selrow">
-          <select id="cmp-na" onchange="onCmpName('a')"><option value="">選手を選択</option></select>
-          <select id="cmp-ea" onchange="onCmpEvent('a')"><option value="">種目</option></select>
-        </div>
+        <select id="cmp-na" onchange="onCmpName('a')"><option value="">選手を選択</option></select>
         <select id="cmp-sa" class="cmp-session-sel"><option value="">レースを選択</option></select>
       </div>
       <div class="cmp-group">
         <div class="cmp-group-lbl b">▶ セッション B</div>
-        <div class="cmp-selrow">
-          <select id="cmp-nb" onchange="onCmpName('b')"><option value="">選手を選択</option></select>
-          <select id="cmp-eb" onchange="onCmpEvent('b')"><option value="">種目</option></select>
-        </div>
+        <select id="cmp-nb" onchange="onCmpName('b')"><option value="">選手を選択</option></select>
         <select id="cmp-sb" class="cmp-session-sel"><option value="">レースを選択</option></select>
       </div>
       <button class="cmp-go-btn" onclick="startCompare()">⚖️ 比較する</button>
@@ -324,6 +321,10 @@ async function loadDashboard() {
       const s = document.getElementById(id);
       names.forEach(n => { const o = document.createElement("option"); o.value = n; o.textContent = n; s.appendChild(o); });
     });
+    // 比較モード共通種目プルダウン
+    const cmpESel = document.getElementById("cmp-event");
+    [...new Set(allSessions.map(s => getEventLabel(s)).filter(Boolean))].sort()
+      .forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; cmpESel.appendChild(o); });
 
     hide("loading");
     show("page-dashboard");
@@ -426,17 +427,8 @@ function _buildOpts(sel, items) {
 }
 
 function onCmpName(ab) {
-  const name = document.getElementById(`cmp-n${ab}`).value;
-  const eSel = document.getElementById(`cmp-e${ab}`);
-  const sSel = document.getElementById(`cmp-s${ab}`);
-  const events = [...new Set(allSessions.filter(s => !name || s.athlete_name === name).map(s => getEventLabel(s)).filter(Boolean))].sort();
-  _buildOpts(eSel, events.map(e => ({ val: e, lbl: e })));
-  _buildOpts(sSel, []);
-}
-
-function onCmpEvent(ab) {
   const name  = document.getElementById(`cmp-n${ab}`).value;
-  const event = document.getElementById(`cmp-e${ab}`).value;
+  const event = document.getElementById("cmp-event").value;
   const sSel  = document.getElementById(`cmp-s${ab}`);
   const filtered = allSessions.filter(s =>
     (!name  || s.athlete_name === name) && (!event || getEventLabel(s) === event)
@@ -446,6 +438,11 @@ function onCmpEvent(ab) {
     const round = s.data?.athlete?.round_name || "";
     return { val: s.share_token, lbl: `${s.competition || "-"}  ${s.date || "-"}  ${round ? "[" + round + "] " : ""}${fmtTime(t)}` };
   }));
+}
+
+function onCmpEvent() {
+  onCmpName('a');
+  onCmpName('b');
 }
 
 function startCompare() {
